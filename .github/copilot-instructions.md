@@ -1,8 +1,11 @@
 # GitHub Copilot Instructions for MyVision
 
+**Last Updated:** October 31, 2025  
+**Repository:** https://github.com/Diwakar0212/MyVision
+
 ## Project Overview
 
-**MyVision** is an AI-powered vision assistance application designed to help visually impaired users navigate their environment. The system uses multiple YOLO models to detect objects, traffic lights, and zebra crossings, providing real-time voice descriptions and visual annotations.
+**MyVision** is an AI-powered vision assistance application designed to help visually impaired users navigate their environment safely. The system uses multiple YOLO models to detect objects, traffic lights, and zebra crossings, providing real-time voice descriptions and visual annotations powered by Gemini AI.
 
 ### Core Architecture
 
@@ -39,6 +42,9 @@ MyVision (Monorepo)
 - Pillow 10.4.0
 - NumPy >=1.26.0
 - python-multipart (file uploads)
+- python-dotenv (environment variables)
+- Google Generative AI (Gemini 1.5 Flash)
+- Transformers (Flan-T5 LLM)
 
 ---
 

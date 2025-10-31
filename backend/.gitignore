@@ -23,9 +23,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# Models
-models/*.pt
+# Models - Now tracked with Git LFS
+# models/*.pt files are managed via Git LFS
 !models/.gitkeep
+!models/*.pt
 
 # Temporary files
 temp_*

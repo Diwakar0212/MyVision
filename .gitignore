@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -29,3 +29,21 @@ backend/.env.local
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Model files - Tracked with Git LFS  
+# .pt files are now managed by Git LFS (see .gitattributes)
+# To download models: git lfs pull
+*.pth
+*.onnx
+
+# Temporary files
+*.tmp
+temp/
+tmp/
