@@ -14,6 +14,10 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import google.generativeai as genai
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI(title="MyVision API", version="1.0.0")
 
@@ -27,8 +31,15 @@ app.add_middleware(
 )
 
 # Gemini API Configuration
-GEMINI_API_KEY = "AIzaSyBIN3jVecrb1t0xLWtEtAVtdOpcaTQjkoY"
-genai.configure(api_key=GEMINI_API_KEY)
+# Load API key from environment variable for security
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    print("⚠️  WARNING: GEMINI_API_KEY environment variable not set!")
+    print("   Gemini AI features will not be available.")
+    print("   Set it using: export GEMINI_API_KEY='your-key-here'  (Linux/Mac)")
+    print("   Or: $env:GEMINI_API_KEY='your-key-here'  (Windows PowerShell)")
 
 # Global models storage
 class ModelManager:
