@@ -17,27 +17,48 @@ backend/
 
 ## 🚀 Setup Instructions
 
-### Step 1: Create models folder and add your trained models
+### Step 1: AI Models (Already Included! ✅)
+
+**Good News:** All 3 AI models are now included in the repository via Git LFS and should already be in `backend/models/` folder after cloning.
+
+```bash
+# Verify models are present
+ls backend/models/*.pt
+
+# If models are missing, pull them via Git LFS:
+git lfs pull
+```
+
+You should see:
+- ✅ `yolov8m.pt` (52 MB) - General object detection
+- ✅ `traffic_lights.pt` (22 MB) - Traffic signal detection  
+- ✅ `zebra_crossing.pt` (6 MB) - Pedestrian crossing detection
+
+📚 **For detailed model info:** See [models/README.md](models/README.md)
+
+### Step 2: Configure API Key (Optional but Recommended)
+
+Set up your Gemini API key for advanced AI voice descriptions:
 
 ```bash
 # Navigate to backend folder
 cd backend
 
-# Create models folder
-mkdir models
+# Copy the example .env file
+cp .env.example .env
 
-# Copy your trained models into this folder:
-# - yolov8m.pt (YOLOv8m base model)
-# - traffic_lights.pt (your traffic light model from Colab)
-# - zebra_crossing.pt (your zebra crossing model from Colab)
+# Edit .env and add your Gemini API key
+# Get free key at: https://makersuite.google.com/app/apikey
 ```
 
-**IMPORTANT:** Rename your models to match these exact names:
-- `yolov8m.pt` → `yolov8m.pt` (place in models folder)
-- `traffic lights.pt` → `traffic_lights.pt`
-- `zebra crossing.pt` → `zebra_crossing.pt`
+Edit `.env`:
+```bash
+GEMINI_API_KEY=your-actual-api-key-here
+```
 
-### Step 2: Install Python dependencies
+**Note:** The app works without Gemini (uses Flan-T5 fallback), but Gemini provides more natural voice descriptions.
+
+### Step 3: Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -136,18 +157,24 @@ Visit: http://localhost:8000/docs for interactive API documentation.
 
 ## 📝 Notes
 
-- All models (including yolov8m.pt) must be in `backend/models/` folder
-- Your custom models must be in `backend/models/` folder
+- ✅ All 3 models are included via Git LFS in `backend/models/` folder
 - Adjust confidence threshold based on your needs (0.0 to 1.0)
 - WebSocket is used for live camera streaming
+- Gemini API key is optional but recommended for better voice descriptions
+- Never commit `.env` file to Git (already in .gitignore)
 
 ## 🐛 Troubleshooting
 
 **Models not loading?**
-- Check if `models/` folder exists
+- Run `git lfs pull` to download models via Git LFS
 - Verify model filenames: `yolov8m.pt`, `traffic_lights.pt` and `zebra_crossing.pt`
+- Check Git LFS is installed: `git lfs version`
 - Ensure all three models are in the `backend/models/` folder
-- Check file paths in `main.py`
+
+**Gemini AI not working?**
+- Check if `GEMINI_API_KEY` is set in `backend/.env`
+- Verify API key is valid at [Google AI Studio](https://makersuite.google.com/)
+- App will automatically fallback to Flan-T5 if Gemini fails
 
 **CUDA/GPU errors?**
 - YOLO will automatically use CPU if GPU is not available
