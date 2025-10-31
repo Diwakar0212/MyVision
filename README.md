@@ -98,25 +98,31 @@ git clone https://github.com/Diwakar0212/MyVision.git
 cd MyVision
 ```
 
-### 2. Download AI Models
+### 2. AI Models Setup
 
-Download the required YOLO models and place them in `backend/models/`:
+**Good News!** All 3 AI models are now included in the repository via Git LFS and will download automatically when you clone:
 
-| Model | Size | Download |
+| Model | Size | Included |
 |-------|------|----------|
-| **YOLOv8m** | 52 MB | [Download from Ultralytics](https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8m.pt) |
-| **Traffic Lights** | 22 MB | Custom trained model (contact for access) |
-| **Zebra Crossing** | 6 MB | Custom trained model (contact for access) |
+| **YOLOv8m** | 52 MB | ✅ Included via Git LFS |
+| **Traffic Lights** | 22 MB | ✅ Included via Git LFS |
+| **Zebra Crossing** | 6 MB | ✅ Included via Git LFS |
 
 ```bash
-# Create models directory
-mkdir -p backend/models
+# Models are automatically downloaded when you clone the repository
+git clone https://github.com/Diwakar0212/MyVision.git
+cd MyVision
 
-# Move downloaded .pt files to backend/models/
-# backend/models/yolov8m.pt
-# backend/models/traffic_lights.pt
-# backend/models/zebra_crossing.pt
+# Verify models are downloaded
+ls -lh backend/models/*.pt
+
+# If models aren't downloaded automatically, run:
+git lfs pull
 ```
+
+**Note:** Git LFS (Large File Storage) must be installed. Download from [git-lfs.github.com](https://git-lfs.github.com/)
+
+📚 **For detailed model documentation**, see [backend/models/README.md](backend/models/README.md)
 
 ### 3. Backend Setup
 
