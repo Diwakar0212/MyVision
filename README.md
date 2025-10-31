@@ -526,6 +526,16 @@ If you find MyVision helpful:
 
 ---
 
+## 📚 Documentation
+
+For detailed technical documentation, see the **[docs/](docs/)** folder:
+
+- [Technical Guides](docs/) - AI integration, algorithms, and architecture details
+- [SECURITY.md](SECURITY.md) - Security guidelines and API key management
+- [Backend API Reference](docs/BACKEND_QUICK_START.md) - Complete API documentation
+
+---
+
 <div align="center">
 
 **Made with ❤️ for accessibility and inclusion**
