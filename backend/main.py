@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from contextlib import asynccontextmanager
 import cv2
 import numpy as np
 from typing import List, Dict, Optional
@@ -19,7 +20,25 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-app = FastAPI(title="MyVision API", version="1.0.0")
+# Lifespan context manager for startup/shutdown events (FastAPI modern approach)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("\n" + "="*50)
+    print("🚀 Starting MyVision API Server")
+    print("="*50)
+    try:
+        model_manager.load_models()
+        print("="*50 + "\n")
+        yield
+    except asyncio.CancelledError:
+        # Handle Python 3.13 asyncio CancelledError gracefully
+        print("⚠️ Asyncio task cancelled (Python 3.13 compatibility issue)")
+    finally:
+        # Shutdown
+        print("🛑 Shutting down MyVision API Server")
+
+app = FastAPI(title="MyVision API", version="1.0.0", lifespan=lifespan)
 
 # CORS configuration for React frontend
 app.add_middleware(
@@ -199,15 +218,6 @@ class ModelManager:
 
 # Initialize model manager
 model_manager = ModelManager()
-
-@app.on_event("startup")
-async def startup_event():
-    """Load models on startup"""
-    print("\n" + "="*50)
-    print("🚀 Starting MyVision API Server")
-    print("="*50)
-    model_manager.load_models()
-    print("="*50 + "\n")
 
 @app.get("/")
 async def root():
@@ -808,7 +818,5 @@ def generate_voice_description(detections: Dict, frame_width: Optional[int] = No
 
 if __name__ == "__main__":
     import uvicorn
-    print("\n" + "="*50)
-    print("🚀 Starting MyVision API Server on http://localhost:8000")
-    print("="*50 + "\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    # Fixed for Python 3.13: Using lifespan instead of @app.on_event and removed reload
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
