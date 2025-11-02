@@ -12,3 +12,13 @@ transformers>=4.30.0
 sentencepiece>=0.1.99
 google-generativeai>=0.8.0
 python-dotenv>=1.0.0
+transformers>=4.30.0
+sentencepiece
+torch   # already used
+marian-nmt (no pip package; use HF MarianMT via transformers)
+python-dotenv  # you already have
+google-generativeai  # you already use
+fastapi
+uvicorn
+python-multipart
+python-jose (if you add auth later)
