@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Object Detection System</title>
+    <link rel="stylesheet" href="home-styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="site-header">
+        <div class="nav-container">
+            <div class="brand">
+                <div class="brand-logo"><img src="https://via.placeholder.com/48x48.png?text=HC" alt="logo"></div>
+                <h1>OBJECT DETECTION</h1>
+            </div>
+            <nav class="nav-links">
+                <a href="home.html" class="nav-link active">Home</a>
+                <a href="output.html" class="nav-link active">Output</a>
+                <a href="help.html" class="nav-link active">Help</a>
+                <a href="about.html" class="nav-link">About</a>
+            </nav>
+            <div class="nav-user">
+                <button class="logout-btn" id="logoutBtn" onclick="window.location.href='index.html'">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Title -->
+    <div class="main-title">
+        <h1>SMART OBJECT DETECTION SYSTEM</h1>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Input Section -->
+        <div class="input-card" id="inputCard">
+            <h2>Upload Your Media:</h2>
+            <div class="input-group">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-upload"></i>
+                    Choose File
+                </button>
+                <input type="text" id="filePathDisplay" placeholder="No file chosen" readonly>
+                <label class="voice-btn" id="voiceCommands" title="Use voice commands">
+                    <i class="fas fa-microphone"></i>
+                </label>
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display: none" />
+            </div>
+
+            <div class="url-group">
+                <input type="text" id="urlInput" placeholder="Or paste an image/video URL from the web" />
+                <button id="loadUrlBtn" class="btn btn-primary">Load from URL</button>
+            </div>
+
+            <p class="muted">Or drag & drop an image/video file or a link onto this card.</p>
+
+            <button class="analyze-btn" id="runDetection" disabled>
+                <i class="fas fa-search"></i>
+                Analyze Objects
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <h2>Detection Results</h2>
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-icon">
+                        <i class="fas fa-object-group"></i>
+                    </div>
+                    <h3>Detected Objects</h3>
+                    <div class="result-content" id="detectionResults">
+                        <p class="placeholder">Upload media to see detected objects</p>
+                        <ul id="resultsList" style="display:none;"></ul>
+                    </div>
+                </div>
+                <div class="result-card">
+                    <div class="result-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h3>Analysis</h3>
+                    <div class="result-content">
+                        <div class="canvas-container">
+                            <canvas id="detectCanvas" width="640" height="480"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span id="statusText">Ready to analyze your media</span>
+            <span id="voiceStatus" class="voice-status">Voice: Idle</span>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js and COCO-SSD model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.13.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+    <script src="home-script.js"></script>
+</body>
+</html>
+
