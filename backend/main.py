@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -16,6 +17,7 @@ import torch
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+from transformers import MarianMTModel, MarianTokenizer
 
 # Load environment variables from .env file
 load_dotenv()
@@ -352,6 +354,10 @@ async def detect_objects_in_video(
                 status_code=503,
                 content={"error": "Models not loaded"}
             )
+            
+        # translators: key -> (tokenizer, model)
+        self.translators = {}  # e.g. "en->hi": (tok, model)
+
         
         # Create temporary files with proper cleanup
         temp_input = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
@@ -738,6 +744,211 @@ def generate_voice_description(detections: Dict, frame_width: Optional[int] = No
             moving_objects.append(obj)
         else:
             static_objects.append(obj)
+                # Load MarianMT translation models for Hindi and Marathi fallbacks
+            try:
+                print("🔄 Loading MarianMT translation models...")
+                # english -> hindi
+                self.translators["en->hi"] = (
+                    MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-hi"),
+                    MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-hi")
+                )
+                # english -> marathi (use en-mr if available; fallback to en-hi if not)
+                try:
+                    self.translators["en->mr"] = (
+                        MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-mr"),
+                        MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-mr")
+                    )
+                except Exception:
+                    # If en->mr isn't available, you can translate en->hi or keep english
+                    print("⚠️ Marian en->mr not available; Marathi fallback disabled.")
+                print("✅ MarianMT translators loaded (where available).")
+            except Exception as trans_err:
+                print(f"⚠️ Error loading MarianMT translators: {trans_err}")
+def _use_gemini_translate(text: str, target_lang: str) -> Optional[str]:
+    """Use Gemini to translate/produce target language text (if available)."""
+    if not model_manager.gemini_loaded:
+        return None
+    try:
+        prompt = f"Translate the following text to {target_lang}. Keep it natural and concise:\n\n{text}"
+        response = model_manager.gemini_model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"⚠️ Gemini translate failed: {e}")
+        return None
+
+def _use_flan_translate(text: str, target_lang: str) -> Optional[str]:
+    """Use Flan-T5 to translate by prompting (if LLM loaded)."""
+    if not model_manager.llm_loaded or not model_manager.tokenizer or not model_manager.llm_model:
+        return None
+    try:
+        prompt = f"Translate into {target_lang}: {text}"
+        input_ids = model_manager.tokenizer(prompt, return_tensors="pt").input_ids
+        with torch.no_grad():
+            outputs = model_manager.llm_model.generate(
+                input_ids,
+                max_length=200,
+                num_beams=4,
+                early_stopping=True
+            )
+        translated = model_manager.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return translated.strip()
+    except Exception as e:
+        print(f"⚠️ Flan translate failed: {e}")
+        return None
+
+def _use_marian_translate(text: str, target_code: str) -> Optional[str]:
+    """Use MarianMT translator when available. target_code is like 'en->hi' or 'en->mr'"""
+    try:
+        if target_code not in model_manager.translators:
+            return None
+        tok, model = model_manager.translators[target_code]
+        batch = tok.prepare_seq2seq_batch([text], return_tensors="pt")
+        with torch.no_grad():
+            gen = model.generate(**batch)
+        translated = tok.batch_decode(gen, skip_special_tokens=True)[0]
+        return translated.strip()
+    except Exception as e:
+        print(f"⚠️ Marian translate failed ({target_code}): {e}")
+        return None
+
+def translate_text(text: str, target_lang: str) -> str:
+    """
+    Translate `text` into target_lang.
+    target_lang: 'en'|'hi'|'mr' (case-insensitive)
+    Preference: Gemini -> Flan -> Marian -> template fallback (same text if all fail)
+    """
+    if not text:
+        return text
+
+    tgt = target_lang.lower()
+    # If english requested, return as-is
+    if tgt in ("en", "eng", "english"):
+        return text
+
+    # 1) Gemini direct
+    gem = _use_gemini_translate(text, {"hi":"Hindi","mr":"Marathi"}.get(tgt, tgt))
+    if gem:
+        return gem
+
+    # 2) Flan-T5 (prompt-based)
+    fl = _use_flan_translate(text, {"hi":"Hindi","mr":"Marathi"}.get(tgt, tgt))
+    if fl:
+        return fl
+
+    # 3) MarianMT (en->hi/en->mr)
+    if tgt in ("hi", "mr"):
+        key = f"en->{tgt}"
+        mar = _use_marian_translate(text, key)
+        if mar:
+            return mar
+
+    # 4) fallback templates: simple replacements for a few fixed sentences
+    FALLBACKS = {
+        "hi": {
+            "The traffic light is red": "ट्रैफिक सिग्नल लाल है",
+            "The traffic light is green": "ट्रैफिक सिग्नल हरा है",
+            "A zebra crossing is visible": "ज़ेब्रा क्रॉसिंग दिखाई दे रही है",
+            "Please wait signal is green and car is near you": "कृपया प्रतीक्षा करें, कार पास है",
+            "Go ahead please take caustion": "जाकर आगे बढ़ें — सावधानी बरतें"
+        },
+        "mr": {
+            "The traffic light is red": "ट्रॅफिक लाईट लाल आहे",
+            "The traffic light is green": "ट्रॅफिक लाईट हिरवा आहे",
+            "A zebra crossing is visible": "झेब्रा क्रॉसिंग दिसत आहे",
+            "Please wait signal is green and car is near you": "कृपया थांबा, वाहन तुमच्या जवळ आहे",
+            "Go ahead please take caustion": "आता जा — काळजी घ्या"
+        }
+    }
+    if tgt in FALLBACKS:
+        # try phrase-level replacement
+        out = text
+        for en_phrase, trans in FALLBACKS[tgt].items():
+            out = out.replace(en_phrase, trans)
+        if out != text:
+            return out
+
+    # last resort, return original (English)
+    return text
+
+@app.post("/api/detect/image")
+async def detect_objects_in_image(
+    file: UploadFile = File(...),
+    confidence: float = 0.4,
+    lang: str = "en"
+):
+    ...
+        # Run all 3 models
+        detections = model_manager.detect_all(image, confidence)
+        # Convert annotated image to base64
+        _, buffer = cv2.imencode('.jpg', detections["annotated_image"])
+        img_base64 = base64.b64encode(buffer).decode('utf-8')
+
+        # Generate voice description in English first
+        description_en = generate_voice_description(detections, frame_width=image.shape[1], frame_height=image.shape[0])
+
+        # Translate description to requested language
+        description_translated = translate_text(description_en, lang)
+
+        return {
+            ...
+            "voice_description": description_translated,
+            "voice_description_en": description_en if lang.lower() != 'en' else None,
+            ...
+        }
+@app.websocket("/api/detect/live")
+async def websocket_live_detection(websocket: WebSocket):
+    await websocket.accept()
+    print("🔌 WebSocket client connected")
+
+    # default language
+    current_lang = "en"
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            # If initial message sets language as JSON
+            try:
+                import json
+                parsed = json.loads(data)
+                if isinstance(parsed, dict) and parsed.get("type") == "init":
+                    current_lang = parsed.get("lang", current_lang)
+                    await websocket.send_json({"status":"ok","lang":current_lang})
+                    continue
+            except Exception:
+                # not JSON init, proceed to treat data as base64 image
+                pass
+
+            # decode image (same as before)
+            if ',' in data:
+                img_data = base64.b64decode(data.split(',')[1])
+            else:
+                img_data = base64.b64decode(data)
+
+            nparr = np.frombuffer(img_data, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if frame is not None and model_manager.models_loaded:
+                detections = model_manager.detect_all(frame, conf_threshold=0.4)
+                frame_height, frame_width = frame.shape[:2]
+
+                _, buffer = cv2.imencode('.jpg', detections["annotated_image"])
+                img_base64 = base64.b64encode(buffer).decode('utf-8')
+
+                # english desc then translate
+                desc_en = generate_voice_description(detections, frame_width, frame_height)
+                desc_trans = translate_text(desc_en, current_lang)
+
+                await websocket.send_json({
+                    "annotated_frame": f"data:image/jpeg;base64,{img_base64}",
+                    "detections": {...},
+                    "voice_description": desc_trans
+                })
+from gtts import gTTS
+def tts_save(text, lang_code='hi', file_path='/tmp/out.mp3'):
+    tts = gTTS(text=text, lang=lang_code)
+    tts.save(file_path)
+    return file_path
+
     
     # Build smart description
     description_parts = []
