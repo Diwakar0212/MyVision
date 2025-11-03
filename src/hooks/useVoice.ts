@@ -15,6 +15,7 @@ export const useVoice = () => {
   
   const recognitionRef = useRef<any>(null);
   const speechQueueRef = useRef<string[]>([]);
+  const welcomedRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const shouldKeepListeningRef = useRef(false);
   const onResultCallbackRef = useRef<((text: string) => void) | null>(null);
@@ -151,6 +152,15 @@ export const useVoice = () => {
     try {
       recognitionRef.current.start();
       console.log('Speech recognition started successfully');
+      // Speak a welcome message the first time web audio / recognition starts
+      if (!welcomedRef.current) {
+        try {
+          speak('Welcome to MyVision');
+          welcomedRef.current = true;
+        } catch (e) {
+          console.warn('Failed to play welcome message', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to start recognition:', error);
       speak('Could not start listening. Please try again.');

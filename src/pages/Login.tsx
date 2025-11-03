@@ -31,6 +31,8 @@ export const Login = ({ onLogin, onActivateVoice, isVoiceModeActive }: LoginProp
     activateVoiceMode,
   } = useAdvancedVoice({ continuous: true, wakeWord: 'hey vision' });
 
+  const [hasPlayedAppWelcome, setHasPlayedAppWelcome] = useState(false);
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
@@ -184,6 +186,16 @@ export const Login = ({ onLogin, onActivateVoice, isVoiceModeActive }: LoginProp
       activateVoiceMode('login');
       startListening(handleVoiceCommand, 'login');
     }, 500);
+
+    // One-time welcome when the app (login page) opens
+    if (!hasPlayedAppWelcome) {
+      // Small delay to avoid clashing with other TTS
+      setTimeout(() => {
+        console.log('🎤 Login - Playing app-open welcome');
+        speak('Welcome to MyVision.');
+        setHasPlayedAppWelcome(true);
+      }, 300);
+    }
 
     return () => {
       clearTimeout(timer);

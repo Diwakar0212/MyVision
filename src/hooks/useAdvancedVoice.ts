@@ -33,6 +33,7 @@ export const useAdvancedVoice = (options: AdvancedVoiceOptions = {}) => {
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
+  const welcomedRef = useRef(false);
   const callbackRef = useRef<((command: VoiceCommand) => void) | null>(null);
   const pausedForSpeechRef = useRef<boolean>(false); // Track if paused for TTS
 
@@ -337,6 +338,15 @@ export const useAdvancedVoice = (options: AdvancedVoiceOptions = {}) => {
 
     try {
       recognitionRef.current.start();
+      // Speak a welcome message the first time web audio / recognition starts
+      if (!welcomedRef.current) {
+        try {
+          speak('Welcome to MyVision');
+          welcomedRef.current = true;
+        } catch (e) {
+          console.warn('Failed to play welcome message', e);
+        }
+      }
     } catch (error) {
       console.error('Error starting recognition:', error);
       setIsListening(false);

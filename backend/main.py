@@ -744,26 +744,7 @@ def generate_voice_description(detections: Dict, frame_width: Optional[int] = No
             moving_objects.append(obj)
         else:
             static_objects.append(obj)
-                # Load MarianMT translation models for Hindi and Marathi fallbacks
-            try:
-                print("🔄 Loading MarianMT translation models...")
-                # english -> hindi
-                self.translators["en->hi"] = (
-                    MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-hi"),
-                    MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-hi")
-                )
-                # english -> marathi (use en-mr if available; fallback to en-hi if not)
-                try:
-                    self.translators["en->mr"] = (
-                        MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-mr"),
-                        MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-mr")
-                    )
-                except Exception:
-                    # If en->mr isn't available, you can translate en->hi or keep english
-                    print("⚠️ Marian en->mr not available; Marathi fallback disabled.")
-                print("✅ MarianMT translators loaded (where available).")
-            except Exception as trans_err:
-                print(f"⚠️ Error loading MarianMT translators: {trans_err}")
+    
 def _use_gemini_translate(text: str, target_lang: str) -> Optional[str]:
     """Use Gemini to translate/produce target language text (if available)."""
     if not model_manager.gemini_loaded:
@@ -876,25 +857,42 @@ async def detect_objects_in_image(
     confidence: float = 0.4,
     lang: str = "en"
 ):
-    ...
-        # Run all 3 models
-        detections = model_manager.detect_all(image, confidence)
-        # Convert annotated image to base64
-        _, buffer = cv2.imencode('.jpg', detections["annotated_image"])
-        img_base64 = base64.b64encode(buffer).decode('utf-8')
+    # Read uploaded image bytes and decode to OpenCV image
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        # Generate voice description in English first
-        description_en = generate_voice_description(detections, frame_width=image.shape[1], frame_height=image.shape[0])
+    if image is None:
+        return {"success": False, "error": "Invalid image file"}
 
-        # Translate description to requested language
-        description_translated = translate_text(description_en, lang)
+    # Run all 3 models
+    detections = model_manager.detect_all(image, confidence)
 
-        return {
-            ...
-            "voice_description": description_translated,
-            "voice_description_en": description_en if lang.lower() != 'en' else None,
-            ...
-        }
+    # Convert annotated image to base64
+    _, buffer = cv2.imencode('.jpg', detections.get("annotated_image", image))
+    img_base64 = base64.b64encode(buffer).decode('utf-8')
+
+    # Generate voice description in English first
+    description_en = generate_voice_description(detections, frame_width=image.shape[1], frame_height=image.shape[0])
+
+    # Translate description to requested language
+    description_translated = translate_text(description_en, lang)
+
+    # Minimal structured response
+    return {
+        "success": True,
+        "type": "image",
+        "filename": getattr(file, 'filename', None),
+        "detections": detections,
+        "counts": {
+            "total_objects": len(detections.get("objects", [])),
+            "traffic_lights": len(detections.get("traffic_lights", [])),
+            "zebra_crossings": len(detections.get("zebra_crossings", []))
+        },
+        "voice_description": description_translated,
+        "voice_description_en": description_en if lang.lower() != 'en' else None,
+        "annotated_image": f"data:image/jpeg;base64,{img_base64}"
+    }
 @app.websocket("/api/detect/live")
 async def websocket_live_detection(websocket: WebSocket):
     await websocket.accept()
@@ -943,8 +941,22 @@ async def websocket_live_detection(websocket: WebSocket):
                     "detections": {...},
                     "voice_description": desc_trans
                 })
-from gtts import gTTS
+    except Exception as e:
+        print(f"⚠️ WebSocket error: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+try:
+    from gtts import gTTS
+except Exception:
+    gTTS = None
+
 def tts_save(text, lang_code='hi', file_path='/tmp/out.mp3'):
+    if gTTS is None:
+        print("⚠️ gTTS not available (package missing). Skipping TTS save.")
+        return None
     tts = gTTS(text=text, lang=lang_code)
     tts.save(file_path)
     return file_path
